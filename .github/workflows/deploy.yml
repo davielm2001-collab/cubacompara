@@ -1,7 +1,21 @@
 name: Deploy CubaCompara
+# REGLA DE SUBIDA (importante): el paquete se sube a GitHub en 4 partes por la
+# web (límite de 25 MB por archivo) y la parte cubacompara-site.z01 SIEMPRE se
+# sube LA ÚLTIMA. Este workflow solo se lanza cuando cambia z01 (o los
+# archivos sueltos de la raíz), es decir, cuando el paquete ya está completo.
+# Antes se lanzaba con cada parte subida y fallaba con "Zip file structure
+# invalid" porque mezclaba partes nuevas con viejas (3 ejecuciones en rojo
+# por cada actualización). Con este filtro, las subidas intermedias
+# (z02, z03, .zip) ya no lanzan el workflow.
 on:
   push:
     branches: [main]
+    paths:
+      - 'cubacompara-site.z01'
+      - 'index.html'
+      - 'sitemap.xml'
+      - 'robots.txt'
+      - '.nojekyll'
   workflow_dispatch:
 permissions:
   contents: read
@@ -20,6 +34,9 @@ jobs:
           zip -s 0 cubacompara-site.zip --out merged.zip
           mkdir -p _site
           unzip -o merged.zip -d _site
+          # Overlay: repo-root files win over the packaged copy, so daily
+          # updates only need to push index.html (assets stay in the zip).
+          cp -f index.html sitemap.xml robots.txt .nojekyll _site/ 2>/dev/null || true
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
